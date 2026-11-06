@@ -1,0 +1,48 @@
+name: Extract Chemistry Explorer ZIP
+
+on:
+  push:
+    paths:
+      - "IMPORT_PROJECT.txt"
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Validate and extract project files
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          archive="chemistry-explorer 11.zip"
+          test -f "$archive"
+          unzip -t "$archive"
+
+          temp_dir="$(mktemp -d)"
+          unzip -q "$archive" -d "$temp_dir"
+          project_dir="$temp_dir/chemistry-explorer"
+          test -d "$project_dir"
+          test -f "$project_dir/package.json"
+          test -f "$project_dir/README.md"
+
+          # Copy the archive contents (not the enclosing folder) into the repository root.
+          cp -a "$project_dir"/. .
+
+          # Keep only the extracted project; remove the uploaded ZIP and this one-time importer.
+          rm -rf "$temp_dir"
+          rm -f "$archive" IMPORT_PROJECT.txt
+          rm -f .github/workflows/extract-project.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Import extracted Chemistry Explorer project"
+          git push origin HEAD:main
